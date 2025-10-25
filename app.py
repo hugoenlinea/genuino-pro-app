@@ -186,29 +186,59 @@ def get_user(user_id):
     conn.close()
     if user: return jsonify(user)
     else: return jsonify({'error': 'Usuario no encontrado'}), 404
+#
+# BUSCA Y REEMPLAZA ESTA FUNCIÓN COMPLETA:
+#
+
 @app.route('/api/users/<int:user_id>', methods=['PUT'])
 @login_required
 def update_user(user_id):
-    if current_user.role != 'Jefe de Ventas': return jsonify({'error': 'No autorizado'}), 403
+    if current_user.role != 'Jefe de Ventas': 
+        return jsonify({'error': 'No autorizado'}), 403
+    
     data = request.get_json()
     fullname, email, role, is_active = data.get('fullname'), data.get('email'), data.get('role'), data.get('is_active')
     new_password = data.get('password')
+    
     conn = get_db_connection()
     cursor = conn.cursor()
+
     try:
+        # --- ¡NUEVO BLOQUE DE VALIDACIÓN! ---
+        # 1. Comprobar si el email ya está en uso por OTRO usuario
+        cursor.execute("SELECT id FROM users WHERE email = %s AND id != %s", (email, user_id))
+        existing_user = cursor.fetchone()
+        
+        if existing_user:
+            conn.close()
+            return jsonify({'error': 'El email ya está en uso por otro usuario'}), 409
+        
+        # --- LÓGICA DE ACTUALIZACIÓN (AHORA ES SEGURA) ---
+        # 2. Si la validación pasa, proceder con la actualización
         if new_password:
             hashed_password = generate_password_hash(new_password)
-            cursor.execute("UPDATE users SET fullname = %s, email = %s, role = %s, is_active = %s, password_hash = %s WHERE id = %s", (fullname, email, role, is_active, hashed_password, user_id))
+            cursor.execute("UPDATE users SET fullname = %s, email = %s, role = %s, is_active = %s, password_hash = %s WHERE id = %s", 
+                           (fullname, email, role, is_active, hashed_password, user_id))
         else:
-            cursor.execute("UPDATE users SET fullname = %s, email = %s, role = %s, is_active = %s WHERE id = %s", (fullname, email, role, is_active, user_id))
+            cursor.execute("UPDATE users SET fullname = %s, email = %s, role = %s, is_active = %s WHERE id = %s", 
+                           (fullname, email, role, is_active, user_id))
+        
         conn.commit()
+        
     except psycopg2.Error as err:
-        conn.rollback(); return jsonify({'error': 'El email ya está en uso por otro usuario'}), 409
+        # Captura para otros errores de BD, aunque el de duplicado ya se manejó
+        conn.rollback()
+        return jsonify({'error': f'Error de base de datos: {str(err)}'}), 500
+    except Exception as e:
+        # Captura para errores de hashing, etc.
+        conn.rollback()
+        return jsonify({'error': f'Error inesperado: {str(e)}'}), 500
     finally:
         cursor.close()
         conn.close()
+        
     return jsonify({'message': 'Usuario actualizado correctamente'})
-@app.route('/api/my-quotes', methods=['GET'])
+app.route('/api/my-quotes', methods=['GET'])
 @login_required
 def get_my_quotes():
     conn = get_db_connection()
