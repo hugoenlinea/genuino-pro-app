@@ -1,10 +1,11 @@
-# app.py (VERSIÓN DE PRODUCCIÓN PARA RENDER / POSTGRESQL)
+# app.py (VERSIÓN FINAL PARA RENDER)
 import os 
-import psycopg2 # ¡NUEVO!
-import psycopg2.extras # ¡NUEVO!
+import psycopg2 
+import psycopg2.extras 
 from flask import Flask, request, jsonify, render_template, redirect, url_for, flash, make_response
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from whitenoise import WhiteNoise # ¡NUEVO!
 
 # Importaciones para el PDF
 import io
@@ -18,6 +19,10 @@ from reportlab.lib.utils import ImageReader
 
 # --- CONFIGURACIÓN Y APP FLASK ---
 app = Flask(__name__)
+# ¡NUEVO! Configurar WhiteNoise para servir archivos estáticos (CSS, logos, etc.)
+# Busca una carpeta llamada 'static' y la sirve.
+app.wsgi_app = WhiteNoise(app.wsgi_app, root=os.path.join(os.path.dirname(__file__), 'static'))
+
 # Lee la clave secreta desde las variables de entorno de Render
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'una-clave-secreta-de-respaldo-muy-dificil')
 
@@ -38,7 +43,7 @@ class User(UserMixin):
 @login_manager.user_loader
 def load_user(user_id):
     conn = get_db_connection()
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) # ¡MODIFICADO!
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) 
     cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
     user_row = cursor.fetchone()
     cursor.close()
@@ -47,17 +52,16 @@ def load_user(user_id):
         return User(id=user_row['id'], email=user_row['email'], fullname=user_row['fullname'], role=user_row['role'])
     return None
 
-# --- CONEXIÓN A BD (¡MODIFICADO PARA POSTGRESQL!) ---
+# --- CONEXIÓN A BD (POSTGRESQL) ---
 def get_db_connection():
     try:
-        # Render provee la URL de la base de datos en esta variable de entorno
         conn = psycopg2.connect(os.environ.get('DATABASE_URL'))
         return conn
     except psycopg2.Error as err:
         print(f"Error al conectar a PostgreSQL: {err}")
         return None
 
-# --- RUTAS DE AUTENTICACIÓN (¡MODIFICADAS!) ---
+# --- RUTAS DE AUTENTICACIÓN ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -82,6 +86,8 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+# --- RUTAS DEL FRONTEND ---
 @app.route('/')
 @login_required
 def index(): 
@@ -143,9 +149,9 @@ def fetchone_dict(cursor):
 def get_users():
     if current_user.role != 'Jefe de Ventas': return jsonify({'error': 'No autorizado'}), 403
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cursor.execute("SELECT id, fullname, email, role, is_active FROM users WHERE id != %s ORDER BY fullname", (current_user.id,))
-    users = fetchall_dict(cursor)
+    users = cursor.fetchall()
     cursor.close()
     conn.close()
     return jsonify(users)
@@ -427,6 +433,7 @@ def _generate_pdf_for_quote(quote_id):
     styles['Heading1'].fontName = 'Helvetica-Bold'
     elements = []
     basedir = os.path.abspath(os.path.dirname(__file__))
+    # WhiteNoise sirve desde 'static', así que la ruta base es el directorio de la app
     logo_path = os.path.join(basedir, 'static', 'logo.png')
     if os.path.exists(logo_path):
         try:
@@ -523,7 +530,8 @@ def _generate_pdf_for_quote(quote_id):
     buffer.seek(0)
     response = make_response(buffer.getvalue())
     response.headers.set('Content-Type', 'application/pdf')
-    response.headers.set('Content-Dismposition', 'inline', filename=f"{clean_text(quote['quote_number'])}.pdf")
+    # ¡CORRECCIÓN DE ERROR TIPOGRÁFICO!
+    response.headers.set('Content-Disposition', 'inline', filename=f"{clean_text(quote['quote_number'])}.pdf")
     return response
 @app.route('/api/quote/<int:quote_id>/pdf')
 @login_required
@@ -565,7 +573,6 @@ def update_approval_threshold():
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # ¡SINTAXIS DE POSTGRESQL! (UPSERT)
         query = """
         INSERT INTO app_settings (setting_key, setting_value) VALUES (%s, %s) 
         ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value
@@ -584,7 +591,6 @@ def report_sales_by_month():
     if current_user.role != 'Jefe de Ventas': return jsonify({'error': 'No autorizado'}), 403
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    # ¡SINTAXIS DE POSTGRESQL! (to_char)
     cursor.execute("SELECT to_char(created_at, 'YYYY-MM') as month, SUM(total_amount) as total_sales FROM quotes WHERE status = 'Aprobada' GROUP BY month ORDER BY month ASC")
     sales_data = cursor.fetchall()
     cursor.close()
@@ -596,7 +602,6 @@ def report_sales_by_month_by_vendor():
     if current_user.role != 'Jefe de Ventas': return jsonify({'error': 'No autorizado'}), 403
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    # ¡SINTAXIS DE POSTGRESQL! (to_char)
     query = """
         SELECT 
             to_char(q.created_at, 'YYYY-MM') as month, 
@@ -790,5 +795,4 @@ def delete_catalog_item(item_id):
         conn.close()
     return jsonify({'message': 'Ítem eliminado'})
 
-# ¡ELIMINAMOS EL if __name__ == '__main__':!
-# Render usa Gunicorn para iniciar la app.
+# (El código de inicialización de BD se movió a init_db.py)
