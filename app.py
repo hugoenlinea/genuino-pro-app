@@ -644,7 +644,7 @@ def report_quotes_by_vendor():
 @app.route('/api/reports/rejections-by-vendor')
 @login_required
 def report_rejections_by_vendor():
-    if current_user.role != 'Jefe de Ventas': return jsonify({'error': 'No autorizado'}), 403
+    if current_user.role != 'JVentas': return jsonify({'error': 'No autorizado'}), 403
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cursor.execute("SELECT u.fullname as vendor_name, COUNT(q.id) as rejection_count FROM quotes q JOIN users u ON q.user_id = u.id WHERE q.status = 'Rechazada' GROUP BY u.fullname ORDER BY rejection_count DESC")
