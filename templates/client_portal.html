@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal de Cliente - Genuino PRO+</title>
+    <link href="https://bootswatch.com/5/superhero/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"> </head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Genuino Logo" height="30" class="d-inline-block align-top">
+            </a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#">Mis Documentos</a>
+                    </li>
+                </ul>
+                <div class="d-flex text-white">
+                    <span class="navbar-text me-3" id="clientNameDisplay">
+                        Cargando...
+                    </span>
+                    <button onclick="logout()" class="btn btn-outline-light">Salir</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <h2 id="welcomeMessage">Bienvenido</h2>
+        <hr>
+
+        <h3 class="mt-4">Mis Cotizaciones Aprobadas</h3>
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Nro. Cotización</th>
+                    <th>Fecha</th>
+                    <th class="text-end">Monto (Bs.)</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="quotesTableBody">
+                </tbody>
+        </table>
+        
+        <h3 class="mt-5">Mis Pedidos</h3>
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Nro. Pedido</th>
+                    <th>Fecha de Cotización</th>
+                    <th>Estado del Pedido</th>
+                </tr>
+            </thead>
+            <tbody id="ordersTableBody">
+                </tbody>
+        </table>
+
+    </div>
+
+    <script>
+        const formatter = new Intl.NumberFormat('en-US', {
+            style: 'decimal',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+        
+        const clientId = sessionStorage.getItem('clientId');
+        const clientName = sessionStorage.getItem('clientName');
+
+        function checkLogin() {
+            if (!clientId) {
+                window.location.href = "{{ url_for('client_login_page') }}";
+                return false;
+            }
+            document.getElementById('clientNameDisplay').textContent = `Cliente: ${clientName}`;
+            document.getElementById('welcomeMessage').textContent = `Bienvenido, ${clientName}`;
+            return true;
+        }
+
+        async function loadClientData() {
+            if (!checkLogin()) return;
+
+            // Cargar Cotizaciones
+            const quotesResponse = await fetch(`/api/client/${clientId}/quotes`);
+            const quotes = await quotesResponse.json();
+            const quotesTable = document.getElementById('quotesTableBody');
+            quotesTable.innerHTML = '';
+            
+            // ¡MODIFICADO! (Puntos 1 y 2)
+            quotes.forEach(quote => {
+                // La API ahora solo envía 'Aprobada', así que el badge siempre será verde.
+                let statusBadge = `<span class="badge bg-success">${quote.status}</span>`;
+                
+                // ¡ENLACE PDF MODIFICADO! 
+                // Apunta a la nueva ruta segura con el clientId.
+                const pdfLink = `/api/client/${clientId}/quote/${quote.id}/pdf`;
+                
+                quotesTable.innerHTML += `
+                    <tr>
+                        <td><strong>${quote.quote_number}</strong></td>
+                        <td>${new Date(quote.created_at).toLocaleDateString()}</td>
+                        <td class="text-end">${formatter.format(quote.total_amount)}</td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <a href="${pdfLink}" target="_blank" class="btn btn-danger btn-sm">
+                                <i class="bi bi-file-earmark-pdf"></i> PDF
+                            </a>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            // Cargar Pedidos
+            const ordersResponse = await fetch(`/api/client/${clientId}/orders`);
+            const orders = await ordersResponse.json();
+            const ordersTable = document.getElementById('ordersTableBody');
+            ordersTable.innerHTML = '';
+            orders.forEach(order => {
+                ordersTable.innerHTML += `
+                    <tr>
+                        <td><strong>PED-${order.id}</strong></td>
+                        <td>${new Date(order.created_at).toLocaleDateString()}</td>
+                        <td><span class="badge bg-info">${order.order_status}</span></td>
+                    </tr>
+                `;
+            });
+        }
+        
+        function logout() {
+            sessionStorage.removeItem('clientId');
+            sessionStorage.removeItem('clientName');
+            window.location.href = "{{ url_for('client_login_page') }}";
+        }
+        
+        document.addEventListener('DOMContentLoaded', loadClientData);
+    </script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

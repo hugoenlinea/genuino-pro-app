@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión - Genuino PRO+</title>
+    <link href="https://bootswatch.com/5/superhero/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .login-container { max-width: 400px; }
+    </style>
+</head>
+<body>
+    <div class="container vh-100 d-flex justify-content-center align-items-center">
+        <div class="login-container card p-4 shadow-sm">
+            <div class="text-center mb-4">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Genuino Logo" style="max-height: 60px;">
+            </div>
+            <h3 class="text-center">Bienvenido</h3>
+            <p class="text-center text-muted mb-4">Inicia sesión en Genuino PRO+</p>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <form method="POST" action="{{ url_for('login') }}">
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email" name="email" required>
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">Contraseña</label>
+                    <input type="password" class="form-control" id="password" name="password" required>
+                </div>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">Ingresar</button>
+                </div>
+            </form>
+            <div class="text-center mt-3">
+                <a href="{{ url_for('client_login_page') }}" class="text-decoration-none">Soy Cliente</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

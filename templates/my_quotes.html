@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cotizaciones - Genuino PRO+</title>
+    <link href="https://bootswatch.com/5/superhero/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"> </head>
+<body>
+    <div id="currentUserInfo" 
+         data-role="{{ current_user.role }}" 
+         data-id="{{ current_user.id }}" 
+         class="d-none">
+    </div>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Genuino Logo" height="30" class="d-inline-block align-top">
+            </a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('create_quote_page') }}">Crear Cotización</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('my_quotes_page') }}">Cotizaciones</a>
+                    </li>
+                    {% if current_user.role == 'Jefe de Ventas' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard (Jefe)</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('manage_users_page') }}">Gestionar Usuarios</a>
+                    </li>
+                     <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('reports_page') }}">Reportes</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('manage_catalog_page') }}">Catálogo</a>
+                    </li>
+                    {% endif %}
+                </ul>
+                <div class="d-flex text-white">
+                    <span class="navbar-text me-3">
+                        Logueado como: {{ current_user.fullname }}
+                    </span>
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-light">Salir</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        
+        {% if current_user.role == 'Jefe de Ventas' %}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2>Gestión de Cotizaciones</h2>
+            <div class="col-md-4">
+                <select id="sellerFilter" class="form-select">
+                    <option value="all" selected>Filtrar por: Todas las Cotizaciones</option>
+                    <option value="{{ current_user.id }}">Mis Cotizaciones (Jefe)</option>
+                    <option disabled>--- Vendedores ---</option>
+                    </select>
+            </div>
+        </div>
+        
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Nro. Cotización</th>
+                    <th>Vendedor</th>
+                    <th>Cliente</th>
+                    <th class="text-end">Monto (Bs.)</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="allQuotesTableBody">
+                </tbody>
+        </table>
+
+        {% else %}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2>Mis Cotizaciones</h2>
+            <a href="{{ url_for('create_quote_page') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Nueva Cotización
+            </a>
+        </div>
+        
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Nro. Cotización</th>
+                    <th>Fecha</th>
+                    <th>Cliente</th>
+                    <th class="text-end">Monto (Bs.)</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="myQuotesTableBody">
+                </tbody>
+        </table>
+        
+        {% endif %}
+        </div>
+
+    <script>
+        const formatter = new Intl.NumberFormat('en-US', {
+            style: 'decimal',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+        
+        // Datos del usuario
+        const userInfo = document.getElementById('currentUserInfo');
+        const userRole = userInfo.dataset.role;
+        const currentUserId = parseInt(userInfo.dataset.id);
+        
+        // Almacenes de datos para el Jefe
+        let allQuotesData = [];
+        let allSellersData = [];
+
+        // Función para renderizar una fila (compartida por ambas vistas)
+        function renderQuoteRow(quote, tableBody) {
+            let statusBadge = '';
+            if (quote.status === 'Aprobada') {
+                statusBadge = `<span class="badge bg-success">${quote.status}</span>`;
+            } else if (quote.status === 'Rechazada') {
+                let reason = quote.rejection_reason 
+                    ? `<br><small class="text-danger fst-italic">Motivo: ${quote.rejection_reason}</small>` 
+                    : '';
+                statusBadge = `<span class="badge bg-danger">${quote.status}</span>${reason}`;
+            } else {
+                statusBadge = `<span class="badge bg-warning text-dark">${quote.status}</span>`;
+            }
+            
+            // El Jefe (admin) SIEMPRE puede ver el PDF.
+            // El Vendedor solo puede verlo si está APROBADA.
+            const pdfButtonDisabled = (quote.status !== 'Aprobada' && userRole !== 'Jefe de Ventas') ? 'disabled' : '';
+            
+            // Columna de Vendedor (solo para el Jefe)
+            const vendorColumn = (userRole === 'Jefe de Ventas') 
+                ? `<td>${quote.vendedor_name}</td>` 
+                : `<td>${new Date(quote.created_at).toLocaleDateString()}</td>`; // Vendedor ve la Fecha
+            
+            const row = `
+                <tr>
+                    <td><strong>${quote.quote_number}</strong></td>
+                    ${vendorColumn}
+                    <td>${quote.company_name}</td>
+                    <td class="text-end">${formatter.format(quote.total_amount)}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <a href="/api/quote/${quote.id}/pdf" target="_blank" class="btn btn-danger btn-sm ${pdfButtonDisabled}">
+                            <i class="bi bi-file-earmark-pdf"></i> PDF
+                        </a>
+                    </td>
+                </tr>
+            `;
+            tableBody.innerHTML += row;
+        }
+
+        // --- LÓGICA PARA VENDEDOR ---
+        async function loadMyQuotes() {
+            const response = await fetch('/api/my-quotes');
+            const quotes = await response.json();
+            const tableBody = document.getElementById('myQuotesTableBody');
+            tableBody.innerHTML = '';
+            quotes.forEach(quote => renderQuoteRow(quote, tableBody));
+            if (quotes.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="6" class="text-center">No tienes cotizaciones.</td></tr>';
+            }
+        }
+        
+        // --- LÓGICA PARA JEFE DE VENTAS ---
+        
+        // 1. Cargar datos y poblar filtro
+        async function initializeManagerView() {
+            // Cargar vendedores para el filtro
+            const usersResponse = await fetch('/api/users');
+            allSellersData = await usersResponse.json();
+            const filterSelect = document.getElementById('sellerFilter');
+            allSellersData.forEach(seller => {
+                if (seller.id !== currentUserId) { // No repetir al jefe si ya está en la lista
+                    filterSelect.innerHTML += `<option value="${seller.id}">${seller.fullname}</option>`;
+                }
+            });
+            
+            // Cargar todas las cotizaciones
+            const quotesResponse = await fetch('/api/all-quotes');
+            allQuotesData = await quotesResponse.json();
+            
+            // Añadir listener al filtro
+            filterSelect.addEventListener('change', renderAllQuotesTable);
+            
+            // Renderizar la tabla inicial (con "Todas")
+            renderAllQuotesTable();
+        }
+        
+        // 2. Renderizar/filtrar la tabla del Jefe
+        function renderAllQuotesTable() {
+            const tableBody = document.getElementById('allQuotesTableBody');
+            const filterValue = document.getElementById('sellerFilter').value;
+            tableBody.innerHTML = '';
+            
+            let filteredQuotes = [];
+            
+            if (filterValue === 'all') {
+                filteredQuotes = allQuotesData;
+            } else {
+                // Filtra por el ID del vendedor (convertido a número)
+                filteredQuotes = allQuotesData.filter(quote => quote.user_id === parseInt(filterValue));
+            }
+            
+            filteredQuotes.forEach(quote => renderQuoteRow(quote, tableBody));
+            
+            if (filteredQuotes.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="6" class="text-center">No se encontraron cotizaciones con este filtro.</td></tr>';
+            }
+        }
+
+        // --- Carga Inicial ---
+        document.addEventListener('DOMContentLoaded', () => {
+            if (userRole === 'Jefe de Ventas') {
+                initializeManagerView();
+            } else {
+                loadMyQuotes();
+            }
+        });
+    </script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

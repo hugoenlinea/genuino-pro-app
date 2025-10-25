@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva Cotización - Genuino PRO+</title>
+    <link href="https://bootswatch.com/5/superhero/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"> <style>
+        .quote-section {
+            border: 1px solid #dee2e6;
+            border-radius: .375rem;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Genuino Logo" height="30" class="d-inline-block align-top">
+            </a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('create_quote_page') }}">Crear Cotización</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('my_quotes_page') }}">Cotizaciones</a>
+                    </li>
+                    {% if current_user.role == 'Jefe de Ventas' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard (Jefe)</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('manage_users_page') }}">Gestionar Usuarios</a>
+                    </li>
+                     <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('reports_page') }}">Reportes</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('manage_catalog_page') }}">Catálogo</a>
+                    </li>
+                    {% endif %}
+                </ul>
+                <div class="d-flex text-white">
+                    <span class="navbar-text me-3">
+                        Logueado como: {{ current_user.fullname }}
+                    </span>
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-light">Salir</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <form id="quoteForm">
+            <div class="row g-4">
+                <div class="col-md-7">
+                    <h2>Crear Nueva Cotización</h2>
+                    <hr>
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label for="customerSearch" class="form-label">Buscar Cliente</label>
+                            <div class="input-group">
+                                <input class="form-control" list="customerOptions" id="customerSearch" placeholder="Escribe para buscar..." required>
+                                <datalist id="customerOptions"></datalist>
+                                <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#newCustomerModal">+</button>
+                            </div>
+                            <input type="hidden" id="customerId">
+                        </div>
+                    </div>
+                    <div class="row mb-2 d-none d-md-flex mt-4">
+                        <div class="col-md-2"><label class="form-label">Código</label></div>
+                        <div class="col-md-3"><label class="form-label">Descripción</label></div>
+                        <div class="col-md-2"><label class="form-label">Cant.</label></div>
+                        <div class="col-md-2"><label class="form-label">P. Unit.</label></div>
+                        <div class="col-md-2"><label class="form-label">Subtotal</label></div>
+                        <div class="col-md-1"></div>
+                    </div>
+                    <div id="quoteItemSections"></div>
+                    <hr>
+                    <div class="text-end">
+                        <h3>Total: <span id="totalAmount">0.00</span> Bs.</h3>
+                    </div>
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">Crear Cotización</button>
+                    </div>
+                </div>
+
+                <div class="col-md-5">
+                    <div class="sticky-top" style="top: 20px;">
+                        <h4><i class="bi bi-book"></i> Catálogo</h4>
+                        <ul class="nav nav-tabs" id="catalogTabs" role="tablist"></ul>
+                        <div class="tab-content border border-top-0 p-3 bg-light rounded-bottom" style="height: 60vh; overflow-y: auto;" id="catalogTabsContent"></div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="modal fade" id="newCustomerModal" tabindex="-1">
+        <div class="modal-dialog"> <div class="modal-content"> <div class="modal-header"> <h5 class="modal-title" id="newCustomerModalLabel">Registrar Nuevo Cliente</h5> <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button> </div> <div class="modal-body"> <form id="newCustomerForm"> <div class="mb-3"> <label for="companyName" class="form-label">Nombre de Empresa o Razón Social</label> <input type="text" class="form-control" id="companyName" required> </div> <div class="mb-3"> <label for="nitCi" class="form-label">NIT / CI</label> <input type="text" class="form-control" id="nitCi" required> </div> <div class="mb-3"> <label for="address" class="form-label">Dirección</label> <input type="text" class="form-control" id="address"> </div> <div class="mb-3"> <label for="contactPerson" class="form-label">Persona de Contacto</label> <input type="text" class="form-control" id="contactPerson"> </div> <div class="mb-3"> <label for="contactEmail" class="form-label">Email de Contacto</label> <input type="email" class="form-control" id="contactEmail"> </div> <div class="mb-3"> <label for="contactPhone" class="form-label">Teléfono de Contacto</label> <input type="tel" class="form-control" id="contactPhone"> </div> </form> </div> <div class="modal-footer"> <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button> <button type="button" class="btn btn-primary" onclick="saveNewCustomer()">Guardar Cliente</button> </div> </div> </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const formatter = new Intl.NumberFormat('en-US', {
+            style: 'decimal',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+        let customers = [];
+        let catalogItems = []; 
+        let catalogTypes = []; 
+        const customerSearch = document.getElementById('customerSearch');
+        const customerOptions = document.getElementById('customerOptions');
+        const customerIdInput = document.getElementById('customerId');
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadCustomers();
+            await loadCatalogTypes();
+            await loadCatalogItems();
+            renderCatalogTabs();
+            renderQuoteSections();
+        });
+        async function loadCustomers() {
+            const response = await fetch('/api/customers');
+            customers = await response.json();
+            customerOptions.innerHTML = '';
+            customers.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = `${customer.company_name} (NIT: ${customer.nit_ci})`;
+                option.dataset.id = customer.id;
+                customerOptions.appendChild(option);
+            });
+        }
+        async function loadCatalogTypes() {
+            const response = await fetch('/api/catalog-types');
+            catalogTypes = await response.json();
+        }
+        async function loadCatalogItems() {
+            const response = await fetch('/api/catalog');
+            catalogItems = await response.json();
+        }
+        customerSearch.addEventListener('input', () => {
+            const selectedOption = Array.from(customerOptions.options).find(opt => opt.value === customerSearch.value);
+            if (selectedOption) { customerIdInput.value = selectedOption.dataset.id; } 
+            else { customerIdInput.value = ''; }
+        });
+        async function saveNewCustomer() {
+            const newCustomer = {
+                company_name: document.getElementById('companyName').value, nit_ci: document.getElementById('nitCi').value,
+                address: document.getElementById('address').value, contact_person: document.getElementById('contactPerson').value,
+                contact_email: document.getElementById('contactEmail').value, contact_phone: document.getElementById('contactPhone').value
+            };
+            const response = await fetch('/api/customers', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newCustomer)
+            });
+            const result = await response.json();
+            if (response.ok) {
+                alert(result.message);
+                bootstrap.Modal.getInstance(document.getElementById('newCustomerModal')).hide();
+                document.getElementById('newCustomerForm').reset();
+                await loadCustomers();
+                customerSearch.value = `${result.customer.company_name} (NIT: ${result.customer.nit_ci})`;
+                customerIdInput.value = result.customer.id;
+            } else { alert(`Error: ${result.error}`); }
+        }
+        function renderCatalogTabs() {
+            const tabsContainer = document.getElementById('catalogTabs');
+            const tabsContentContainer = document.getElementById('catalogTabsContent');
+            tabsContainer.innerHTML = '';
+            tabsContentContainer.innerHTML = '';
+            catalogTypes.forEach((type, index) => {
+                const typeIdSanitized = `catalog-tab-${type.id}`;
+                const isActive = index === 0 ? 'active' : '';
+                tabsContainer.innerHTML += `
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link ${isActive}" data-bs-toggle="tab" data-bs-target="#${typeIdSanitized}" type="button">${type.name}</button>
+                    </li>
+                `;
+                tabsContentContainer.innerHTML += `
+                    <div class="tab-pane fade show ${isActive}" id="${typeIdSanitized}" role="tabpanel">
+                        <input type="text" class="form-control mb-2" id="search-${type.id}" onkeyup="filterCatalogList(${type.id})" placeholder="Buscar en ${type.name}...">
+                        <ul class="list-group" id="list-${type.id}"></ul>
+                    </div>
+                `;
+            });
+            catalogTypes.forEach(type => filterCatalogList(type.id));
+        }
+
+        // ¡FUNCIÓN MODIFICADA!
+        function renderQuoteSections() {
+            const sectionsContainer = document.getElementById('quoteItemSections');
+            sectionsContainer.innerHTML = '';
+            catalogTypes.forEach(type => {
+                sectionsContainer.innerHTML += `
+                    <div class="quote-section">
+                        <h4>${type.name}</h4>
+                        <div id="quote-items-list-${type.id}">
+                            </div>
+                        <button type="button" class="btn btn-secondary btn-sm mt-2" onclick="addManualItem(${type.id})">
+                            + Añadir ${type.name} Manual
+                        </button>
+                    </div>
+                `;
+                // ¡LÍNEA ELIMINADA!
+                // Se eliminó la línea "addManualItem(type.id);" que estaba aquí.
+            });
+        }
+        
+        function filterCatalogList(typeId, filter = '') {
+            const listContainer = document.getElementById(`list-${typeId}`);
+            listContainer.innerHTML = '';
+            const lowerFilter = filter.toLowerCase();
+            const itemsOfType = catalogItems.filter(item => item.type_id === typeId);
+            itemsOfType.forEach(item => {
+                if (item.description.toLowerCase().includes(lowerFilter) || item.code.toLowerCase().includes(lowerFilter)) {
+                    listContainer.innerHTML += `
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted">${item.code}</small><br>
+                                <strong>${item.description}</strong><br>
+                                <small>${formatter.format(item.unit_price)} Bs.</small>
+                            </div>
+                            <button type="button" class="btn btn-success btn-sm" 
+                                    onclick="addItemFromCatalog(${item.type_id}, '${item.code}', '${item.description}', ${item.unit_price})">
+                                <i class="bi bi-plus-lg"></i>
+                            </button>
+                        </li>
+                    `;
+                }
+            });
+        }
+        
+        let itemIdCounter = 0;
+        function addItemFromCatalog(typeId, code, description, unit_price) {
+            addItemRow(typeId, code, description, unit_price, true);
+        }
+        function addManualItem(typeId) {
+            addItemRow(typeId, '', '', '', false);
+        }
+        function addItemRow(typeId, code, description, unit_price, isReadOnly) {
+            const itemId = itemIdCounter++;
+            const readOnlyFlag = isReadOnly ? 'readonly' : '';
+            const priceValue = unit_price !== '' ? unit_price.toFixed(2) : '';
+            const codeValue = code || '';
+            const codeInputEvent = isReadOnly ? '' : 'onblur="checkItemCode(event)"';
+            const itemsListContainer = document.getElementById(`quote-items-list-${typeId}`);
+            const itemHTML = `
+                <div class="row mb-2 align-items-center quote-item-row" id="item-${itemId}" data-type-id="${typeId}">
+                    <div class="col-md-2">
+                        <input type="text" class="form-control item-code" placeholder="Código" value="${codeValue}" ${readOnlyFlag} ${codeInputEvent} required>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" class="form-control item-description" placeholder="Descripción" value="${description}" ${readOnlyFlag} required>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" class="form-control item-quantity" placeholder="Cant." min="1" value="1" oninput="updateTotal()" required>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" class="form-control item-price" placeholder="P. Unit." step="0.01" min="0" value="${priceValue}" ${readOnlyFlag} oninput="updateTotal()" required>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" class="form-control item-subtotal" placeholder="Subtotal" readonly>
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-danger btn-sm" onclick="removeItem(${itemId})"><i class="bi bi-trash"></i></button>
+                    </div>
+                </div>`;
+            itemsListContainer.insertAdjacentHTML('beforeend', itemHTML);
+            updateTotal();
+        }
+        function checkItemCode(event) {
+            const inputElement = event.target;
+            const typedCode = inputElement.value;
+            const itemRow = inputElement.closest('.row');
+            const currentTypeId = parseInt(itemRow.dataset.typeId);
+            if (!typedCode) return; 
+            const foundItem = catalogItems.find(item => 
+                item.code === typedCode && item.type_id === currentTypeId
+            );
+            if (foundItem) {
+                const descriptionInput = itemRow.querySelector('.item-description');
+                const priceInput = itemRow.querySelector('.item-price');
+                descriptionInput.value = foundItem.description;
+                priceInput.value = foundItem.unit_price.toFixed(2);
+                descriptionInput.readOnly = true;
+                priceInput.readOnly = true;
+                inputElement.readOnly = true; 
+                updateTotal();
+            } else {
+                const descriptionInput = itemRow.querySelector('.item-description');
+                const priceInput = itemRow.querySelector('.item-price');
+                descriptionInput.readOnly = false;
+                priceInput.readOnly = false;
+            }
+        }
+        function removeItem(id) { 
+            document.getElementById(`item-${id}`).remove(); 
+            updateTotal(); 
+        }
+        function updateTotal() {
+            let total = 0;
+            document.querySelectorAll('.quote-item-row').forEach(row => {
+                const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
+                const price = parseFloat(row.querySelector('.item-price').value) || 0;
+                const subtotal = quantity * price;
+                row.querySelector('.item-subtotal').value = formatter.format(subtotal);
+                total += subtotal;
+            });
+            document.getElementById('totalAmount').textContent = formatter.format(total);
+        }
+        document.getElementById('quoteForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            if (!document.getElementById('customerId').value) {
+                alert('Por favor, selecciona un cliente válido.');
+                return;
+            }
+            const quoteItems = [];
+            document.querySelectorAll('.quote-item-row').forEach(row => {
+                const description = row.querySelector('.item-description').value;
+                if (description) {
+                    quoteItems.push({
+                        type_id: parseInt(row.dataset.typeId),
+                        code: row.querySelector('.item-code').value,
+                        description: description,
+                        quantity: parseInt(row.querySelector('.item-quantity').value),
+                        unit_price: parseFloat(row.querySelector('.item-price').value)
+                    });
+                }
+            });
+            if (quoteItems.length === 0) {
+                alert('Debes añadir al menos un ítem a la cotización.');
+                return;
+            }
+            const data = {
+                customer_id: parseInt(document.getElementById('customerId').value),
+                items: quoteItems
+            };
+            const response = await fetch('/api/quotes', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            if (response.ok) {
+                alert(result.message);
+                window.location.href = "{{ url_for('my_quotes_page') }}";
+            } else {
+                alert(`Error: ${result.error}`);
+            }
+        });
+    </script>
+</body>
+</html>

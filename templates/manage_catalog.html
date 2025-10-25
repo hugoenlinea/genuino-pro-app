@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestionar Catálogo - Genuino PRO+</title>
+    <link href="https://bootswatch.com/5/superhero/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Genuino Logo" height="30" class="d-inline-block align-top">
+            </a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('create_quote_page') }}">Crear Cotización</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('my_quotes_page') }}">Cotizaciones</a>
+                    </li>
+                    {% if current_user.role == 'Jefe de Ventas' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard (Jefe)</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('manage_users_page') }}">Gestionar Usuarios</a>
+                    </li>
+                     <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('reports_page') }}">Reportes</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('manage_catalog_page') }}">Catálogo</a>
+                    </li>
+                    {% endif %}
+                </ul>
+                <div class="d-flex text-white">
+                    <span class="navbar-text me-3">
+                        Logueado como: {{ current_user.fullname }}
+                    </span>
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-light">Salir</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="manage-items-tab" data-bs-toggle="tab" data-bs-target="#manage-items" type="button">Gestionar Ítems</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="manage-types-tab" data-bs-toggle="tab" data-bs-target="#manage-types" type="button">Gestionar Tipos</button>
+            </li>
+        </ul>
+        <div class="tab-content" id="mainTabsContent">
+            <div class="tab-pane fade show active" id="manage-items" role="tabpanel">
+                <ul class="nav nav-tabs mt-3" id="catalogTypeTabs" role="tablist"></ul>
+                <div class="tab-content" id="catalogTypeTabsContent"></div>
+            </div>
+            <div class="tab-pane fade" id="manage-types" role="tabpanel">
+                <div class="row g-4 mt-2">
+                    <div class="col-md-4">
+                        <h3>Añadir Tipo de Ítem</h3>
+                        <div class="card">
+                            <div class="card-body">
+                                <form id="createTypeForm">
+                                    <div class="mb-3">
+                                        <label for="type_name" class="form-label">Nombre del Tipo</label>
+                                        <input type="text" class="form-control" id="type_name" placeholder="Ej: Servicios" required>
+                                    </div>
+                                    <div class="d-grid">
+                                        <button type="submit" class="btn btn-primary">Crear Tipo</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <h3>Tipos Actuales</h3>
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr><th>Nombre del Tipo</th><th>Acción</th></tr>
+                            </thead>
+                            <tbody id="typesTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="editItemModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar Ítem del Catálogo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editItemForm">
+                        <input type="hidden" id="edit_item_id">
+                        <div class="mb-3">
+                            <label for="edit_item_type" class="form-label">Tipo de Ítem</label>
+                            <select class="form-select" id="edit_item_type" required></select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_code" class="form-label">Código</label>
+                            <input type="text" class="form-control" id="edit_code" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_description" class="form-label">Descripción</label>
+                            <input type="text" class="form-control" id="edit_description" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_unit_price" class="form-label">Precio Unitario (Bs.)</label>
+                            <input type="number" step="0.01" class="form-control" id="edit_unit_price" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="handleUpdateItem()">Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="editTypeModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar Tipo de Ítem</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editTypeForm">
+                        <input type="hidden" id="edit_type_id">
+                        <div class="mb-3">
+                            <label for="edit_type_name" class="form-label">Nombre del Tipo</label>
+                            <input type="text" class="form-control" id="edit_type_name" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="handleUpdateType()">Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const formatter = new Intl.NumberFormat('en-US', {
+            style: 'decimal',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+        let allCatalogTypes = [];
+        let allCatalogItems = [];
+        let editItemModal = null;
+        let editTypeModal = null;
+        document.addEventListener('DOMContentLoaded', () => {
+            editItemModal = new bootstrap.Modal(document.getElementById('editItemModal'));
+            editTypeModal = new bootstrap.Modal(document.getElementById('editTypeModal'));
+            loadCatalogTypes();
+            loadCatalogItems();
+            document.getElementById('createTypeForm').addEventListener('submit', handleCreateType);
+        });
+        async function loadCatalogTypes() {
+            const response = await fetch('/api/catalog-types');
+            allCatalogTypes = await response.json();
+            const typesTableBody = document.getElementById('typesTableBody');
+            const itemTypeSelect = document.getElementById('edit_item_type');
+            typesTableBody.innerHTML = '';
+            itemTypeSelect.innerHTML = '';
+            allCatalogTypes.forEach(type => {
+                typesTableBody.innerHTML += `
+                    <tr id="type-row-${type.id}">
+                        <td>${type.name}</td>
+                        <td>
+                            <button class="btn btn-warning btn-sm" onclick="handleEditType(${type.id}, '${type.name}')"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-danger btn-sm" onclick="handleDeleteType(${type.id})"><i class="bi bi-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+                itemTypeSelect.innerHTML += `<option value="${type.id}">${type.name}</option>`;
+            });
+            renderItemTabs();
+        }
+        async function handleCreateType(event) {
+            event.preventDefault();
+            const name = document.getElementById('type_name').value;
+            const response = await fetch('/api/catalog-types', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name })
+            });
+            const result = await response.json();
+            if (response.ok) {
+                alert(result.message);
+                document.getElementById('createTypeForm').reset();
+                loadCatalogTypes(); 
+                loadCatalogItems();
+            } else {
+                alert(`Error: ${result.error}`);
+            }
+        }
+        function handleEditType(typeId, currentName) {
+            document.getElementById('edit_type_id').value = typeId;
+            document.getElementById('edit_type_name').value = currentName;
+            editTypeModal.show();
+        }
+        async function handleUpdateType() {
+            const typeId = document.getElementById('edit_type_id').value;
+            const name = document.getElementById('edit_type_name').value;
+            const response = await fetch(`/api/catalog-types/${typeId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name })
+            });
+            const result = await response.json();
+            if (response.ok) {
+                alert(result.message);
+                editTypeModal.hide();
+                loadCatalogTypes();
+                loadCatalogItems();
+            } else {
+                alert(`Error: ${result.error}`);
+            }
+        }
+        async function handleDeleteType(typeId) {
+            if (!confirm('¿Seguro? Si elimina un tipo, NO debe tener ítems asociados.')) return;
+            const response = await fetch(`/api/catalog-types/${typeId}`, { method: 'DELETE' });
+            const result = await response.json();
+            if (response.ok) {
+                alert(result.message);
+                loadCatalogTypes();
+                loadCatalogItems();
+            } else {
+                alert(`Error: ${result.error}`);
+            }
+        }
+        async function loadCatalogItems() {
+            const response = await fetch('/api/catalog');
+            allCatalogItems = await response.json();
+            renderItemTabsContent();
+        }
+        function renderItemTabs() {
+            const tabsContainer = document.getElementById('catalogTypeTabs');
+            const tabsContentContainer = document.getElementById('catalogTypeTabsContent');
+            tabsContainer.innerHTML = '';
+            tabsContentContainer.innerHTML = '';
+            allCatalogTypes.forEach((type, index) => {
+                const typeIdSanitized = `type-tab-content-${type.id}`;
+                const isActive = index === 0 ? 'active' : '';
+                tabsContainer.innerHTML += `
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link ${isActive}" id="type-tab-${type.id}" data-bs-toggle="tab" data-bs-target="#${typeIdSanitized}" type="button">
+                            ${type.name}
+                        </button>
+                    </li>
+                `;
+                tabsContentContainer.innerHTML += `
+                    <div class="tab-pane fade show ${isActive}" id="${typeIdSanitized}" role="tabpanel">
+                        <div class="row g-4 mt-2">
+                            <div class="col-md-4">
+                                <h3>Añadir ${type.name}</h3>
+                                <div class="card">
+                                    <div class="card-body">
+                                        <form id="createItemForm-${type.id}" data-type-id="${type.id}">
+                                            <div class="mb-3">
+                                                <label for="code-${type.id}" class="form-label">Código</label>
+                                                <input type="text" class="form-control" id="code-${type.id}" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="description-${type.id}" class="form-label">Descripción</label>
+                                                <input type="text" class="form-control" id="description-${type.id}" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="price-${type.id}" class="form-label">Precio Unitario (Bs.)</label>
+                                                <input type="number" step="0.01" class="form-control" id="price-${type.id}" required>
+                                            </div>
+                                            <div class="d-grid">
+                                                <button type="submit" class="btn btn-primary">Añadir</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <h3>Ítems Actuales</h3>
+                                <table class="table table-hover align-middle">
+                                    <thead class="table-light">
+                                        <tr><th>Código</th><th>Descripción</th><th class="text-end">Precio (Bs.)</th><th>Acción</th></tr>
+                                    </thead>
+                                    <tbody id="itemsTableBody-${type.id}"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            allCatalogTypes.forEach(type => {
+                document.getElementById(`createItemForm-${type.id}`).addEventListener('submit', handleCreateItem);
+            });
+            renderItemTabsContent();
+        }
+        function renderItemTabsContent() {
+            allCatalogTypes.forEach(type => {
+                const tableBody = document.getElementById(`itemsTableBody-${type.id}`);
+                if (tableBody) tableBody.innerHTML = '';
+            });
+            allCatalogItems.forEach(item => {
+                const tableBody = document.getElementById(`itemsTableBody-${item.type_id}`);
+                if (tableBody) {
+                    tableBody.innerHTML += `
+                        <tr id="item-row-${item.id}">
+                            <td>${item.code}</td>
+                            <td>${item.description}</td>
+                            <td class="text-end">${formatter.format(item.unit_price)}</td>
+                            <td>
+                                <button class="btn btn-warning btn-sm" onclick="handleEditItem(${item.id})"><i class="bi bi-pencil"></i></button>
+                                <button class="btn btn-danger btn-sm" onclick="handleDeleteItem(${item.id})"><i class="bi bi-trash"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                }
+            });
+        }
+        async function handleCreateItem(event) {
+            event.preventDefault();
+            const form = event.target;
+            const typeId = form.dataset.typeId;
+            const data = {
+                type_id: parseInt(typeId),
+                code: document.getElementById(`code-${typeId}`).value,
+                description: document.getElementById(`description-${typeId}`).value,
+                unit_price: parseFloat(document.getElementById(`price-${typeId}`).value)
+            };
+            const response = await fetch('/api/catalog', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            if (response.ok) {
+                alert(result.message);
+                form.reset();
+                loadCatalogItems();
+            } else {
+                alert(`Error: ${result.error}`);
+            }
+        }
+        async function handleEditItem(itemId) {
+            const response = await fetch(`/api/catalog/${itemId}`);
+            if (!response.ok) { alert('Error al cargar datos del ítem.'); return; }
+            const item = await response.json();
+            document.getElementById('edit_item_id').value = item.id;
+            document.getElementById('edit_item_type').value = item.type_id;
+            document.getElementById('edit_code').value = item.code;
+            document.getElementById('edit_description').value = item.description;
+            document.getElementById('edit_unit_price').value = item.unit_price;
+            editItemModal.show();
+        }
+        async function handleUpdateItem() {
+            const itemId = document.getElementById('edit_item_id').value;
+            const data = {
+                type_id: parseInt(document.getElementById('edit_item_type').value),
+                code: document.getElementById('edit_code').value,
+                description: document.getElementById('edit_description').value,
+                unit_price: parseFloat(document.getElementById('edit_unit_price').value)
+            };
+            const response = await fetch(`/api/catalog/${itemId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            if (response.ok) {
+                alert(result.message);
+                editItemModal.hide();
+                loadCatalogItems();
+            } else {
+                alert(`Error: ${result.error}`);
+            }
+        }
+        async function handleDeleteItem(itemId) {
+            if (!confirm('¿Seguro que quieres eliminar este ítem?')) return;
+            const response = await fetch(`/api/catalog/${itemId}`, { method: 'DELETE' });
+            const result = await response.json();
+            if (response.ok) {
+                alert(result.message);
+                loadCatalogItems();
+            } else {
+                alert(`Error: ${result.error}`);
+            }
+        }
+    </script>
+</body>
+</html>

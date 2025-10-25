@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reportes - Genuino PRO+</title>
+    <link href="https://bootswatch.com/5/superhero/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"> <style>
+        /* Damos una altura fija a los contenedores de los gráficos */
+        .chart-container {
+            position: relative; 
+            height:350px; 
+            width:100%
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Genuino Logo" height="30" class="d-inline-block align-top">
+            </a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('create_quote_page') }}">Crear Cotización</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('my_quotes_page') }}">Cotizaciones</a>
+                    </li>
+                    {% if current_user.role == 'Jefe de Ventas' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard (Jefe)</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('manage_users_page') }}">Gestionar Usuarios</a>
+                    </li>
+                     <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('reports_page') }}">Reportes</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('manage_catalog_page') }}">Catálogo</a>
+                    </li>
+                    {% endif %}
+                </ul>
+                <div class="d-flex text-white">
+                    <span class="navbar-text me-3">
+                        Logueado como: {{ current_user.fullname }}
+                    </span>
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-light">Salir</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <h2>Reportes de Ventas</h2>
+        <hr>
+        
+        <div class="row g-4">
+            <div class="col-md-12">
+                <h3>Ventas Totales Aprobadas por Mes</h3>
+                <div class="chart-container">
+                    <canvas id="salesByMonthChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="col-md-12">
+                <h3>Ventas Aprobadas por Vendedor (por Mes)</h3>
+                <div class="chart-container">
+                    <canvas id="salesByMonthByVendorChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <h3>Cotizaciones Totales por Vendedor</h3>
+                <div class="chart-container">
+                    <canvas id="quotesByVendorChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <h3>Rechazos Totales por Vendedor</h3>
+                <div class="chart-container">
+                    <canvas id="rejectionsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Paleta de colores para gráficos
+        const chartColors = [
+            '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', 
+            '#858796', '#5a5c69', '#f8f9fc', '#17a2b8', '#fd7e14'
+        ];
+        
+        // Formateador de moneda para los tooltips
+        const moneyFormatter = new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD', // Puedes cambiarlo a 'BOB' si prefieres Bs.
+            minimumFractionDigits: 2
+        });
+
+        // ¡FUNCIÓN DE GRÁFICOS MODIFICADA! (Punto 2: Interactividad)
+        function createSimpleChart(ctx, type, labels, data, label, formatAsMoney = false) {
+            const chartData = {
+                labels: labels,
+                datasets: [{
+                    label: label,
+                    data: data,
+                    borderWidth: 1
+                }]
+            };
+
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: (type === 'pie' || type === 'doughnut') ? 'top' : 'bottom',
+                    },
+                    // ¡MEJORA DE TOOLTIPS! (Punto 2)
+                    tooltip: {
+                        enabled: true,
+                        intersect: false,
+                        mode: (type === 'pie' || type === 'doughnut') ? 'point' : 'index',
+                        callbacks: {
+                            label: function(context) {
+                                let val = context.parsed;
+                                if (type !== 'pie' && type !== 'doughnut') {
+                                    val = context.parsed.y;
+                                }
+                                if (formatAsMoney) {
+                                    return `${context.dataset.label}: ${moneyFormatter.format(val)}`;
+                                }
+                                return `${context.dataset.label}: ${val}`;
+                            }
+                        }
+                    }
+                }
+            };
+            
+            if (type === 'pie' || type === 'doughnut') {
+                chartData.datasets[0].backgroundColor = chartColors;
+            } else {
+                chartData.datasets[0].backgroundColor = 'rgba(78, 115, 223, 0.1)';
+                chartData.datasets[0].borderColor = 'rgba(78, 115, 223, 1)';
+                chartData.datasets[0].fill = type === 'line';
+                options.scales = { y: { beginAtZero: (type === 'bar') } };
+            }
+
+            new Chart(ctx, { type: type, data: chartData, options: options });
+        }
+        
+        // ¡NUEVA FUNCIÓN DE GRÁFICO APILADO! (Punto 1)
+        function createStackedBarChart(ctx, labels, datasets) {
+            // Asigna colores a cada vendedor
+            datasets.forEach((dataset, index) => {
+                dataset.backgroundColor = chartColors[index % chartColors.length];
+            });
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    // ¡MEJORA DE TOOLTIPS! (Punto 2)
+                    plugins: {
+                        tooltip: {
+                            enabled: true,
+                            intersect: false,
+                            mode: 'index',
+                            callbacks: {
+                                label: function(context) {
+                                    const val = context.parsed.y;
+                                    return `${context.dataset.label}: ${moneyFormatter.format(val)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { stacked: true }, // Apilar horizontalmente
+                        y: { 
+                            stacked: true,  // Apilar verticalmente
+                            beginAtZero: true 
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Cargar Gráfico 1: Ventas Totales por Mes (Línea)
+        async function loadSalesByMonth() {
+            const response = await fetch('/api/reports/sales-by-month');
+            const result = await response.json();
+            const ctx = document.getElementById('salesByMonthChart');
+            createSimpleChart(ctx, 'line', result.labels, result.data, 'Total Ventas (Bs.)', true);
+        }
+        
+        // Cargar Gráfico 2: Ventas por Vendedor por Mes (Barras Apiladas)
+        async function loadSalesByMonthByVendor() {
+            const response = await fetch('/api/reports/sales-by-month-by-vendor');
+            const result = await response.json();
+            const ctx = document.getElementById('salesByMonthByVendorChart');
+            createStackedBarChart(ctx, result.labels, result.datasets);
+        }
+        
+        // Cargar Gráfico 3: Cotizaciones por Vendedor (Torta)
+        async function loadQuotesByVendor() {
+            const response = await fetch('/api/reports/quotes-by-vendor');
+            const result = await response.json();
+            const ctx = document.getElementById('quotesByVendorChart');
+            createSimpleChart(ctx, 'pie', result.labels, result.data, 'Nro. de Cotizaciones', false);
+        }
+        
+        // Cargar Gráfico 4: Rechazos por Vendedor (Torta)
+        async function loadRejectionsChart() {
+            const response = await fetch('/api/reports/rejections-by-vendor');
+            const result = await response.json();
+            const ctx = document.getElementById('rejectionsChart');
+            createSimpleChart(ctx, 'pie', result.labels, result.data, 'Nro. de Rechazos', false);
+        }
+
+        // Carga inicial
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSalesByMonth();
+            loadSalesByMonthByVendor(); // Cargar el nuevo gráfico
+            loadQuotesByVendor();
+            loadRejectionsChart();
+        });
+    </script>
+</body>
+</html>

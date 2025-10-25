@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal de Cliente - Genuino PRO+</title>
+    <link href="https://bootswatch.com/5/superhero/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .login-container { max-width: 400px; }
+    </style>
+</head>
+<body>
+    <div class="container vh-100 d-flex justify-content-center align-items-center">
+        <div class="login-container card p-4 shadow-sm">
+            <div class="text-center mb-4">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Genuino Logo" style="max-height: 60px;">
+            </div>
+            <h3 class="text-center">Portal de Cliente</h3>
+            <p class="text-center text-muted mb-4">Ingrese con su NIT / CI</p>
+
+            <div id="errorMessage" class="alert alert-danger d-none"></div>
+            
+            <form id="clientLoginForm">
+                <div class="mb-3">
+                    <label for="nitCi" class="form-label">NIT / CI</label>
+                    <input type="text" class="form-control" id="nitCi" name="nitCi" required>
+                </div>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">Ingresar</button>
+                </div>
+            </form>
+            <div class="text-center mt-3">
+                <a href="{{ url_for('login') }}" class="text-decoration-none">Soy Vendedor</a>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('clientLoginForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const nitCi = document.getElementById('nitCi').value;
+            const errorMessage = document.getElementById('errorMessage');
+            
+            const response = await fetch('/api/client/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nit_ci: nitCi })
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                // Guardar datos del cliente para usarlos en el portal
+                sessionStorage.setItem('clientId', result.id);
+                sessionStorage.setItem('clientName', result.company_name);
+                
+                // Redirigir al portal
+                window.location.href = "{{ url_for('client_portal_page') }}";
+            } else {
+                errorMessage.textContent = `Error: ${result.error}`;
+                errorMessage.classList.remove('d-none');
+            }
+        });
+    </script>
+</body>
+</html>
