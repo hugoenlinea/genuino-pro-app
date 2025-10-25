@@ -1,25 +1,32 @@
-# init_db.py
+# init_db.py (VERSIÓN CON CORRECCIÓN DE CONTRASEÑA)
 import os
 import psycopg2
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash # ¡IMPORTANTE!
 
-# Obtener la URL de la base de datos desde la misma variable de entorno que usará la app
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
-# Contraseña para los usuarios iniciales
-# HASH para '12345'
-password_hash = 'pbkdf2:sha256:600000$hTfJtE4FkZqS3y0M$d6f8f7c9e1e1a8a3e7e2c9e7a4a9b6c0e9d6d7e6c9a3b2c8d5a3e1a8b7e6f9a0'
+# --- ¡NUEVA CONTRASEÑA! ---
+# Vamos a generar un hash nuevo para la contraseña: 'admin'
+try:
+    new_password = 'admin'
+    password_hash = generate_password_hash(new_password)
+    print(f"Nuevo hash para la contraseña '{new_password}' generado exitosamente.")
+except Exception as e:
+    print(f"Error fatal: No se pudo importar o usar 'generate_password_hash'. ¿Está 'werkzeug' en requirements.txt? Error: {e}")
+    exit(1) # Detiene el script si no se puede generar el hash
 
-# Comandos SQL para insertar usuarios
+# --- ¡SQL MODIFICADO! ---
+# ON CONFLICT (email) DO UPDATE ...
+# Esto es clave: Si el usuario ya existe, ACTUALIZA su contraseña.
 users_sql = """
 INSERT INTO users (fullname, email, password_hash, role, is_active) 
 VALUES 
 ('Jefe de Ventas', 'jefe@genuino.com', %s, 'Jefe de Ventas', true),
 ('Vendedor Uno', 'vendedor@genuino.com', %s, 'Vendedor', true)
-ON CONFLICT (email) DO NOTHING;
+ON CONFLICT (email) 
+DO UPDATE SET password_hash = EXCLUDED.password_hash;
 """
 
-# Comandos SQL para insertar tipos de catálogo iniciales
 types_sql = """
 INSERT INTO catalog_types (name) VALUES 
 ('Productos/Servicios'),
@@ -38,22 +45,24 @@ def initialize_database():
         with open('schema-postgresql.sql', 'r') as f:
             sql_script = f.read()
         
-        print("Ejecutando script SQL para crear tablas...")
+        print("Ejecutando script SQL para crear tablas (IF NOT EXISTS)...")
         cursor.execute(sql_script)
         
-        print("Insertando usuarios iniciales...")
+        print(f"Insertando/Actualizando usuarios con la nueva clave: '{new_password}'...")
         cursor.execute(users_sql, (password_hash, password_hash))
 
-        print("Insertando tipos de catálogo iniciales...")
+        print("Insertando tipos de catálogo iniciales (ON CONFLICT DO NOTHING)...")
         cursor.execute(types_sql)
         
         conn.commit()
         cursor.close()
-        print("¡Base de datos inicializada exitosamente!")
+        print("¡Base de datos inicializada y contraseñas actualizadas exitosamente!")
         
     except psycopg2.Error as e:
         print(f"Error durante la inicialización de la base de datos:")
         print(e)
+    except Exception as e:
+        print(f"Un error inesperado ocurrió: {e}")
     finally:
         if conn:
             conn.close()
