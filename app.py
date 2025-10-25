@@ -253,15 +253,38 @@ def update_user(user_id):
         
     return jsonify({'message': 'Usuario actualizado correctamente'})
 
-app.route('/api/my-quotes', methods=['GET'])
+#
+# BUSCA Y REEMPLAZA ESTA FUNCIÓN: get_my_quotes
+#
+
+@app.route('/api/my-quotes', methods=['GET'])
 @login_required
 def get_my_quotes():
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cursor.execute("SELECT q.id, q.quote_number, q.created_at, q.total_amount, q.status, c.company_name, q.rejection_reason FROM quotes q JOIN customers c ON q.customer_id = c.id WHERE q.user_id = %s ORDER BY q.created_at DESC", (current_user.id,))
-    quotes = cursor.fetchall()
-    cursor.close()
-    conn.close()
+    
+    try:
+        # --- ¡CORRECCIÓN! ---
+        # Forzar la conversión a int() para asegurar la coincidencia de tipos
+        user_id_int = int(current_user.id)
+        
+        query = """
+        SELECT q.id, q.quote_number, q.created_at, q.total_amount, q.status, 
+               c.company_name, q.rejection_reason 
+        FROM quotes q 
+        JOIN customers c ON q.customer_id = c.id 
+        WHERE q.user_id = %s 
+        ORDER BY q.created_at DESC
+        """
+        cursor.execute(query, (user_id_int,))
+        quotes = cursor.fetchall()
+    except Exception as e:
+        print(f"Error en get_my_quotes: {e}") # Esto aparecerá en los logs de Render
+        quotes = [] # Devuelve una lista vacía en caso de error
+    finally:
+        cursor.close()
+        conn.close()
+        
     return jsonify(quotes)
 @app.route('/api/all-quotes', methods=['GET'])
 @login_required
