@@ -155,6 +155,10 @@ def get_users():
     cursor.close()
     conn.close()
     return jsonify(users)
+#
+# BUSCA Y REEMPLAZA ESTA FUNCIÓN: create_user
+#
+
 @app.route('/api/users', methods=['POST'])
 @login_required
 def create_user():
@@ -166,7 +170,10 @@ def create_user():
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("INSERT INTO users (fullname, email, password_hash, role, is_active) VALUES (%s, %s, %s, %s, %s)", (fullname, email, hashed_password, role, 1))
+        # --- ¡CORRECCIÓN! ---
+        # PostgreSQL es estricto. 'is_active' debe ser un booleano (True), no un entero (1).
+        cursor.execute("INSERT INTO users (fullname, email, password_hash, role, is_active) VALUES (%s, %s, %s, %s, %s)", 
+                       (fullname, email, hashed_password, role, True)) # <-- CAMBIADO DE 1 a True
         conn.commit()
     except psycopg2.Error as err:
         conn.rollback(); return jsonify({'error': 'El email ya está registrado'}), 409
@@ -190,6 +197,10 @@ def get_user(user_id):
 # BUSCA Y REEMPLAZA ESTA FUNCIÓN COMPLETA:
 #
 
+#
+# BUSCA Y REEMPLAZA ESTA FUNCIÓN: update_user
+#
+
 @app.route('/api/users/<int:user_id>', methods=['PUT'])
 @login_required
 def update_user(user_id):
@@ -197,14 +208,19 @@ def update_user(user_id):
         return jsonify({'error': 'No autorizado'}), 403
     
     data = request.get_json()
-    fullname, email, role, is_active = data.get('fullname'), data.get('email'), data.get('role'), data.get('is_active')
+    fullname, email, role = data.get('fullname'), data.get('email'), data.get('role')
+    
+    # --- ¡CORRECCIÓN! ---
+    # Asegurarnos de que 'is_active' sea un booleano de Python (True/False)
+    # El JSON puede enviar 1, 0, true, false, etc. bool() lo manejará.
+    is_active = bool(data.get('is_active')) 
+    
     new_password = data.get('password')
     
     conn = get_db_connection()
     cursor = conn.cursor()
 
     try:
-        # --- ¡NUEVO BLOQUE DE VALIDACIÓN! ---
         # 1. Comprobar si el email ya está en uso por OTRO usuario
         cursor.execute("SELECT id FROM users WHERE email = %s AND id != %s", (email, user_id))
         existing_user = cursor.fetchone()
@@ -213,24 +229,22 @@ def update_user(user_id):
             conn.close()
             return jsonify({'error': 'El email ya está en uso por otro usuario'}), 409
         
-        # --- LÓGICA DE ACTUALIZACIÓN (AHORA ES SEGURA) ---
-        # 2. Si la validación pasa, proceder con la actualización
+        # 2. Lógica de actualización
         if new_password:
             hashed_password = generate_password_hash(new_password)
             cursor.execute("UPDATE users SET fullname = %s, email = %s, role = %s, is_active = %s, password_hash = %s WHERE id = %s", 
-                           (fullname, email, role, is_active, hashed_password, user_id))
+                           (fullname, email, role, is_active, hashed_password, user_id)) # 'is_active' es ahora un booleano
         else:
             cursor.execute("UPDATE users SET fullname = %s, email = %s, role = %s, is_active = %s WHERE id = %s", 
-                           (fullname, email, role, is_active, user_id))
+                           (fullname, email, role, is_active, user_id)) # 'is_active' es ahora un booleano
         
         conn.commit()
         
     except psycopg2.Error as err:
-        # Captura para otros errores de BD, aunque el de duplicado ya se manejó
         conn.rollback()
+        # Devuelve el error específico de la BD, que es lo que vio el usuario
         return jsonify({'error': f'Error de base de datos: {str(err)}'}), 500
     except Exception as e:
-        # Captura para errores de hashing, etc.
         conn.rollback()
         return jsonify({'error': f'Error inesperado: {str(e)}'}), 500
     finally:
@@ -238,6 +252,7 @@ def update_user(user_id):
         conn.close()
         
     return jsonify({'message': 'Usuario actualizado correctamente'})
+
 app.route('/api/my-quotes', methods=['GET'])
 @login_required
 def get_my_quotes():
