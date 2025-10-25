@@ -709,17 +709,39 @@ def report_quotes_by_vendor():
     cursor.close()
     conn.close()
     return jsonify({'labels': [row['vendor_name'] for row in vendor_data], 'data': [row['quote_count'] for row in vendor_data]})
+
 @app.route('/api/reports/rejections-by-vendor')
 @login_required
 def report_rejections_by_vendor():
-    if current_user.role != 'JVentas': return jsonify({'error': 'No autorizado'}), 403
+    # --- ¡CORRECCIÓN! ---
+    # El rol es 'Jefe de Ventas', no 'JVentas'.
+    if current_user.role != 'Jefe de Ventas': 
+        return jsonify({'error': 'No autorizado'}), 403
+    
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cursor.execute("SELECT u.fullname as vendor_name, COUNT(q.id) as rejection_count FROM quotes q JOIN users u ON q.user_id = u.id WHERE q.status = 'Rechazada' GROUP BY u.fullname ORDER BY rejection_count DESC")
-    rejection_data = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return jsonify({'labels': [row['vendor_name'] for row in rejection_data], 'data': [row['rejection_count'] for row in rejection_data]})
+    
+    try:
+        cursor.execute("""
+            SELECT u.fullname as vendor_name, COUNT(q.id) as rejection_count 
+            FROM quotes q 
+            JOIN users u ON q.user_id = u.id 
+            WHERE q.status = 'Rechazada' 
+            GROUP BY u.fullname 
+            ORDER BY rejection_count DESC
+        """)
+        rejection_data = cursor.fetchall()
+    except Exception as e:
+        print(f"Error en report_rejections_by_vendor: {e}")
+        rejection_data = []
+    finally:
+        cursor.close()
+        conn.close()
+        
+    return jsonify({
+        'labels': [row['vendor_name'] for row in rejection_data], 
+        'data': [row['rejection_count'] for row in rejection_data]
+    })
 @app.route('/api/catalog-types', methods=['GET'])
 @login_required
 def get_catalog_types():
