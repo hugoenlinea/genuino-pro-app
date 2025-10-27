@@ -405,24 +405,56 @@ def client_login():
     conn.close()
     if client: return jsonify(client)
     else: return jsonify({'error': 'Credenciales incorrectas'}), 401
+
+
 @app.route('/api/client/<int:client_id>/quotes')
 def get_client_quotes(client_id):
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cursor.execute("SELECT id, quote_number, created_at, total_amount, status FROM quotes WHERE customer_id = %s AND status = 'Aprobada' ORDER BY created_at DESC", (client_id,))
-    quotes = cursor.fetchall()
-    cursor.close()
-    conn.close()
+    try:
+        # --- ¡CORRECCIÓN! ---
+        # Forzar la conversión a int() para asegurar la coincidencia de tipos
+        customer_id_int = int(client_id)
+        
+        cursor.execute(
+            "SELECT id, quote_number, created_at, total_amount, status FROM quotes WHERE customer_id = %s AND status = 'Aprobada' ORDER BY created_at DESC", 
+            (customer_id_int,)
+        )
+        quotes = cursor.fetchall()
+    except Exception as e:
+        print(f"Error en get_client_quotes: {e}") # Para los logs de Render
+        quotes = []
+    finally:
+        cursor.close()
+        conn.close()
     return jsonify(quotes)
+
+#
+# BUSCA Y REEMPLAZA ESTA FUNCIÓN: get_client_orders
+#
+
 @app.route('/api/client/<int:client_id>/orders')
 def get_client_orders(client_id):
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cursor.execute("SELECT o.id, q.quote_number, q.created_at, o.order_status FROM orders o JOIN quotes q ON o.quote_id = q.id WHERE q.customer_id = %s ORDER BY q.created_at DESC", (client_id,))
-    orders = cursor.fetchall()
-    cursor.close()
-    conn.close()
+    try:
+        # --- ¡CORRECCIÓN! ---
+        # Forzar la conversión a int() para asegurar la coincidencia de tipos
+        customer_id_int = int(client_id)
+        
+        cursor.execute(
+            "SELECT o.id, q.quote_number, q.created_at, o.order_status FROM orders o JOIN quotes q ON o.quote_id = q.id WHERE q.customer_id = %s ORDER BY q.created_at DESC", 
+            (customer_id_int,)
+        )
+        orders = cursor.fetchall()
+    except Exception as e:
+        print(f"Error en get_client_orders: {e}") # Para los logs de Render
+        orders = []
+    finally:
+        cursor.close()
+        conn.close()
     return jsonify(orders)
+
 @app.route('/api/quotes/approved', methods=['GET'])
 @login_required
 def get_approved_quotes():
