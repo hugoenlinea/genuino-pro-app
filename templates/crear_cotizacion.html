@@ -6,7 +6,8 @@
     <title>Nueva Cotización - Genuino PRO+</title>
     <link href="https://bootswatch.com/5/superhero/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"> <style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
         .quote-section {
             border: 1px solid #dee2e6;
             border-radius: .375rem;
@@ -59,12 +60,14 @@
         </div>
     </div>
 </nav>
+
     <div class="container mt-5">
         <form id="quoteForm">
             <div class="row g-4">
                 <div class="col-md-7">
                     <h2>Crear Nueva Cotización</h2>
                     <hr>
+                    
                     <div class="row mb-3">
                         <div class="col-md-8">
                             <label for="customerSearch" class="form-label">Buscar Cliente</label>
@@ -76,6 +79,7 @@
                             <input type="hidden" id="customerId">
                         </div>
                     </div>
+
                     <div class="row mb-2 d-none d-md-flex mt-4">
                         <div class="col-md-2"><label class="form-label">Código</label></div>
                         <div class="col-md-3"><label class="form-label">Descripción</label></div>
@@ -84,11 +88,14 @@
                         <div class="col-md-2"><label class="form-label">Subtotal</label></div>
                         <div class="col-md-1"></div>
                     </div>
+
                     <div id="quoteItemSections"></div>
+
                     <hr>
                     <div class="text-end">
                         <h3>Total: <span id="totalAmount">0.00</span> Bs.</h3>
                     </div>
+
                     <div class="mt-4">
                         <button type="submit" class="btn btn-primary btn-lg">Crear Cotización</button>
                     </div>
@@ -106,19 +113,61 @@
     </div>
 
     <div class="modal fade" id="newCustomerModal" tabindex="-1">
-        <div class="modal-dialog"> <div class="modal-content"> <div class="modal-header"> <h5 class="modal-title" id="newCustomerModalLabel">Registrar Nuevo Cliente</h5> <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button> </div> <div class="modal-body"> <form id="newCustomerForm"> <div class="mb-3"> <label for="companyName" class="form-label">Nombre de Empresa o Razón Social</label> <input type="text" class="form-control" id="companyName" required> </div> <div class="mb-3"> <label for="nitCi" class="form-label">NIT / CI</label> <input type="text" class="form-control" id="nitCi" required> </div> <div class="mb-3"> <label for="address" class="form-label">Dirección</label> <input type="text" class="form-control" id="address"> </div> <div class="mb-3"> <label for="contactPerson" class="form-label">Persona de Contacto</label> <input type="text" class="form-control" id="contactPerson"> </div> <div class="mb-3"> <label for="contactEmail" class="form-label">Email de Contacto</label> <input type="email" class="form-control" id="contactEmail"> </div> <div class="mb-3"> <label for="contactPhone" class="form-label">Teléfono de Contacto</label> <input type="tel" class="form-control" id="contactPhone"> </div> </form> </div> <div class="modal-footer"> <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button> <button type="button" class="btn btn-primary" onclick="saveNewCustomer()">Guardar Cliente</button> </div> </div> </div>
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newCustomerModalLabel">Registrar Nuevo Cliente</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="newCustomerForm">
+                        <div class="mb-3">
+                            <label for="companyName" class="form-label">Nombre de Empresa o Razón Social</label>
+                            <input type="text" class="form-control" id="companyName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="nitCi" class="form-label">NIT / CI</label>
+                            <input type="text" class="form-control" id="nitCi" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="address" class="form-label">Dirección</label>
+                            <input type="text" class="form-control" id="address">
+                        </div>
+                        <div class="mb-3">
+                            <label for="contactPerson" class="form-label">Persona de Contacto</label>
+                            <input type="text" class="form-control" id="contactPerson">
+                        </div>
+                        <div class="mb-3">
+                            <label for="contactEmail" class="form-label">Email de Contacto</label>
+                            <input type="email" class="form-control" id="contactEmail">
+                        </div>
+                        <div class="mb-3">
+                            <label for="contactPhone" class="form-label">Teléfono de Contacto</label>
+                            <input type="tel" class="form-control" id="contactPhone">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="saveNewCustomer()">Guardar Cliente</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
     <script>
         const formatter = new Intl.NumberFormat('en-US', {
             style: 'decimal',
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         });
+
         let customers = [];
         let catalogItems = []; 
         let catalogTypes = []; 
+
         const customerSearch = document.getElementById('customerSearch');
         const customerOptions = document.getElementById('customerOptions');
         const customerIdInput = document.getElementById('customerId');
@@ -130,9 +179,11 @@
             renderCatalogTabs();
             renderQuoteSections();
         });
+
         async function loadCustomers() {
             const response = await fetch('/api/customers');
             customers = await response.json();
+            
             customerOptions.innerHTML = '';
             customers.forEach(customer => {
                 const option = document.createElement('option');
@@ -141,51 +192,83 @@
                 customerOptions.appendChild(option);
             });
         }
+
         async function loadCatalogTypes() {
             const response = await fetch('/api/catalog-types');
             catalogTypes = await response.json();
         }
+
         async function loadCatalogItems() {
             const response = await fetch('/api/catalog');
             catalogItems = await response.json();
         }
+
+        // Evento para seleccionar cliente del datalist
         customerSearch.addEventListener('input', () => {
             const selectedOption = Array.from(customerOptions.options).find(opt => opt.value === customerSearch.value);
-            if (selectedOption) { customerIdInput.value = selectedOption.dataset.id; } 
-            else { customerIdInput.value = ''; }
+            if (selectedOption) {
+                customerIdInput.value = selectedOption.dataset.id;
+            } else {
+                customerIdInput.value = '';
+            }
         });
+
         async function saveNewCustomer() {
             const newCustomer = {
-                company_name: document.getElementById('companyName').value, nit_ci: document.getElementById('nitCi').value,
-                address: document.getElementById('address').value, contact_person: document.getElementById('contactPerson').value,
-                contact_email: document.getElementById('contactEmail').value, contact_phone: document.getElementById('contactPhone').value
+                company_name: document.getElementById('companyName').value,
+                nit_ci: document.getElementById('nitCi').value,
+                address: document.getElementById('address').value,
+                contact_person: document.getElementById('contactPerson').value,
+                contact_email: document.getElementById('contactEmail').value,
+                contact_phone: document.getElementById('contactPhone').value
             };
+
             const response = await fetch('/api/customers', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newCustomer)
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newCustomer)
             });
+
             const result = await response.json();
+
             if (response.ok) {
-                alert(result.message);
-                bootstrap.Modal.getInstance(document.getElementById('newCustomerModal')).hide();
+                // 1. Ocultar el modal PRIMERO
+                const modalEl = document.getElementById('newCustomerModal');
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                modal.hide();
+
+                // 2. Limpiar formulario y recargar datos
                 document.getElementById('newCustomerForm').reset();
                 await loadCustomers();
+                
+                // 3. Seleccionar el nuevo cliente automáticamente
                 customerSearch.value = `${result.customer.company_name} (NIT: ${result.customer.nit_ci})`;
                 customerIdInput.value = result.customer.id;
-            } else { alert(`Error: ${result.error}`); }
+                
+                // 4. Mostrar mensaje de éxito AL FINAL
+                alert(result.message);
+            } else {
+                alert(`Error: ${result.error}`);
+            }
         }
+
         function renderCatalogTabs() {
             const tabsContainer = document.getElementById('catalogTabs');
             const tabsContentContainer = document.getElementById('catalogTabsContent');
+            
             tabsContainer.innerHTML = '';
             tabsContentContainer.innerHTML = '';
+
             catalogTypes.forEach((type, index) => {
                 const typeIdSanitized = `catalog-tab-${type.id}`;
                 const isActive = index === 0 ? 'active' : '';
+
                 tabsContainer.innerHTML += `
                     <li class="nav-item" role="presentation">
                         <button class="nav-link ${isActive}" data-bs-toggle="tab" data-bs-target="#${typeIdSanitized}" type="button">${type.name}</button>
                     </li>
                 `;
+
                 tabsContentContainer.innerHTML += `
                     <div class="tab-pane fade show ${isActive}" id="${typeIdSanitized}" role="tabpanel">
                         <input type="text" class="form-control mb-2" id="search-${type.id}" onkeyup="filterCatalogList(${type.id})" placeholder="Buscar en ${type.name}...">
@@ -193,13 +276,15 @@
                     </div>
                 `;
             });
+            
+            // Renderizar listas iniciales
             catalogTypes.forEach(type => filterCatalogList(type.id));
         }
 
-        // ¡FUNCIÓN MODIFICADA!
         function renderQuoteSections() {
             const sectionsContainer = document.getElementById('quoteItemSections');
             sectionsContainer.innerHTML = '';
+
             catalogTypes.forEach(type => {
                 sectionsContainer.innerHTML += `
                     <div class="quote-section">
@@ -211,8 +296,6 @@
                         </button>
                     </div>
                 `;
-                // ¡LÍNEA ELIMINADA!
-                // Se eliminó la línea "addManualItem(type.id);" que estaba aquí.
             });
         }
         
@@ -220,7 +303,9 @@
             const listContainer = document.getElementById(`list-${typeId}`);
             listContainer.innerHTML = '';
             const lowerFilter = filter.toLowerCase();
+
             const itemsOfType = catalogItems.filter(item => item.type_id === typeId);
+
             itemsOfType.forEach(item => {
                 if (item.description.toLowerCase().includes(lowerFilter) || item.code.toLowerCase().includes(lowerFilter)) {
                     listContainer.innerHTML += `
@@ -240,20 +325,28 @@
             });
         }
         
+        // --- Gestión de Ítems en la Cotización ---
         let itemIdCounter = 0;
+
         function addItemFromCatalog(typeId, code, description, unit_price) {
             addItemRow(typeId, code, description, unit_price, true);
         }
+
         function addManualItem(typeId) {
             addItemRow(typeId, '', '', '', false);
         }
+
         function addItemRow(typeId, code, description, unit_price, isReadOnly) {
             const itemId = itemIdCounter++;
             const readOnlyFlag = isReadOnly ? 'readonly' : '';
             const priceValue = unit_price !== '' ? unit_price.toFixed(2) : '';
             const codeValue = code || '';
+            
+            // Si es manual, añadimos evento para buscar código al salir del campo
             const codeInputEvent = isReadOnly ? '' : 'onblur="checkItemCode(event)"';
+
             const itemsListContainer = document.getElementById(`quote-items-list-${typeId}`);
+            
             const itemHTML = `
                 <div class="row mb-2 align-items-center quote-item-row" id="item-${itemId}" data-type-id="${typeId}">
                     <div class="col-md-2">
@@ -275,55 +368,74 @@
                         <button type="button" class="btn btn-danger btn-sm" onclick="removeItem(${itemId})"><i class="bi bi-trash"></i></button>
                     </div>
                 </div>`;
+            
             itemsListContainer.insertAdjacentHTML('beforeend', itemHTML);
             updateTotal();
         }
+
         function checkItemCode(event) {
             const inputElement = event.target;
             const typedCode = inputElement.value;
             const itemRow = inputElement.closest('.row');
             const currentTypeId = parseInt(itemRow.dataset.typeId);
+
             if (!typedCode) return; 
+
+            // Buscar en el catálogo
             const foundItem = catalogItems.find(item => 
                 item.code === typedCode && item.type_id === currentTypeId
             );
+
             if (foundItem) {
+                // Si existe, autocompletar y bloquear
                 const descriptionInput = itemRow.querySelector('.item-description');
                 const priceInput = itemRow.querySelector('.item-price');
+                
                 descriptionInput.value = foundItem.description;
                 priceInput.value = foundItem.unit_price.toFixed(2);
+                
                 descriptionInput.readOnly = true;
                 priceInput.readOnly = true;
-                inputElement.readOnly = true; 
+                inputElement.readOnly = true; // Bloquear el código también
+                
                 updateTotal();
             } else {
+                // Si no existe, permitir edición manual
                 const descriptionInput = itemRow.querySelector('.item-description');
                 const priceInput = itemRow.querySelector('.item-price');
+                
                 descriptionInput.readOnly = false;
                 priceInput.readOnly = false;
             }
         }
+
         function removeItem(id) { 
             document.getElementById(`item-${id}`).remove(); 
             updateTotal(); 
         }
+
         function updateTotal() {
             let total = 0;
             document.querySelectorAll('.quote-item-row').forEach(row => {
                 const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
                 const price = parseFloat(row.querySelector('.item-price').value) || 0;
                 const subtotal = quantity * price;
+                
                 row.querySelector('.item-subtotal').value = formatter.format(subtotal);
                 total += subtotal;
             });
             document.getElementById('totalAmount').textContent = formatter.format(total);
         }
+
+        // --- Enviar Cotización ---
         document.getElementById('quoteForm').addEventListener('submit', async function(event) {
             event.preventDefault();
+
             if (!document.getElementById('customerId').value) {
                 alert('Por favor, selecciona un cliente válido.');
                 return;
             }
+
             const quoteItems = [];
             document.querySelectorAll('.quote-item-row').forEach(row => {
                 const description = row.querySelector('.item-description').value;
@@ -337,18 +449,25 @@
                     });
                 }
             });
+
             if (quoteItems.length === 0) {
                 alert('Debes añadir al menos un ítem a la cotización.');
                 return;
             }
+
             const data = {
                 customer_id: parseInt(document.getElementById('customerId').value),
                 items: quoteItems
             };
+
             const response = await fetch('/api/quotes', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
             });
+
             const result = await response.json();
+
             if (response.ok) {
                 alert(result.message);
                 window.location.href = "{{ url_for('my_quotes_page') }}";
@@ -357,6 +476,5 @@
             }
         });
     </script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
