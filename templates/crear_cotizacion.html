@@ -213,7 +213,9 @@
             }
         });
 
+        // --- FUNCIÓN CORREGIDA CON LIMPIEZA FORZADA ---
         async function saveNewCustomer() {
+            // 1. Recopilar datos
             const newCustomer = {
                 company_name: document.getElementById('companyName').value,
                 nit_ci: document.getElementById('nitCi').value,
@@ -223,6 +225,7 @@
                 contact_phone: document.getElementById('contactPhone').value
             };
 
+            // 2. Enviar al servidor
             const response = await fetch('/api/customers', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -232,21 +235,29 @@
             const result = await response.json();
 
             if (response.ok) {
-                // 1. Ocultar el modal PRIMERO
+                // 3. Cerrar el modal usando Bootstrap
                 const modalEl = document.getElementById('newCustomerModal');
                 const modal = bootstrap.Modal.getInstance(modalEl);
                 modal.hide();
 
-                // 2. Limpiar formulario y recargar datos
+                // --- LIMPIEZA FORZADA (Evita bloqueo de pantalla) ---
+                document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = 'auto'; 
+                document.body.style.paddingRight = ''; 
+
+                // 4. Limpiar formulario y recargar datos
                 document.getElementById('newCustomerForm').reset();
                 await loadCustomers();
                 
-                // 3. Seleccionar el nuevo cliente automáticamente
+                // 5. Seleccionar nuevo cliente
                 customerSearch.value = `${result.customer.company_name} (NIT: ${result.customer.nit_ci})`;
                 customerIdInput.value = result.customer.id;
                 
-                // 4. Mostrar mensaje de éxito AL FINAL
-                alert(result.message);
+                // 6. Alerta con retraso
+                setTimeout(() => {
+                    alert(result.message);
+                }, 200);
             } else {
                 alert(`Error: ${result.error}`);
             }
@@ -277,7 +288,6 @@
                 `;
             });
             
-            // Renderizar listas iniciales
             catalogTypes.forEach(type => filterCatalogList(type.id));
         }
 
@@ -289,8 +299,7 @@
                 sectionsContainer.innerHTML += `
                     <div class="quote-section">
                         <h4>${type.name}</h4>
-                        <div id="quote-items-list-${type.id}">
-                            </div>
+                        <div id="quote-items-list-${type.id}"></div>
                         <button type="button" class="btn btn-secondary btn-sm mt-2" onclick="addManualItem(${type.id})">
                             + Añadir ${type.name} Manual
                         </button>
@@ -325,7 +334,7 @@
             });
         }
         
-        // --- Gestión de Ítems en la Cotización ---
+        // --- Gestión de Ítems ---
         let itemIdCounter = 0;
 
         function addItemFromCatalog(typeId, code, description, unit_price) {
@@ -341,8 +350,6 @@
             const readOnlyFlag = isReadOnly ? 'readonly' : '';
             const priceValue = unit_price !== '' ? unit_price.toFixed(2) : '';
             const codeValue = code || '';
-            
-            // Si es manual, añadimos evento para buscar código al salir del campo
             const codeInputEvent = isReadOnly ? '' : 'onblur="checkItemCode(event)"';
 
             const itemsListContainer = document.getElementById(`quote-items-list-${typeId}`);
@@ -381,13 +388,11 @@
 
             if (!typedCode) return; 
 
-            // Buscar en el catálogo
             const foundItem = catalogItems.find(item => 
                 item.code === typedCode && item.type_id === currentTypeId
             );
 
             if (foundItem) {
-                // Si existe, autocompletar y bloquear
                 const descriptionInput = itemRow.querySelector('.item-description');
                 const priceInput = itemRow.querySelector('.item-price');
                 
@@ -396,14 +401,12 @@
                 
                 descriptionInput.readOnly = true;
                 priceInput.readOnly = true;
-                inputElement.readOnly = true; // Bloquear el código también
+                inputElement.readOnly = true;
                 
                 updateTotal();
             } else {
-                // Si no existe, permitir edición manual
                 const descriptionInput = itemRow.querySelector('.item-description');
                 const priceInput = itemRow.querySelector('.item-price');
-                
                 descriptionInput.readOnly = false;
                 priceInput.readOnly = false;
             }
@@ -420,7 +423,6 @@
                 const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
                 const price = parseFloat(row.querySelector('.item-price').value) || 0;
                 const subtotal = quantity * price;
-                
                 row.querySelector('.item-subtotal').value = formatter.format(subtotal);
                 total += subtotal;
             });
